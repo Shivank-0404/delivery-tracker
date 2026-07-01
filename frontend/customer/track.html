@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Track Shipment — Delivery Tracker</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="bg-gradient-deco"></div>
+  <div class="bg-gradient-deco-left"></div>
+
+  <!-- Navigation -->
+  <nav class="navbar glass-panel container">
+    <a href="#" class="brand">🚚 Last-Mile Delivery Tracker</a>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#" id="home-link">Dashboard</a></li>
+      <li><a href="#" class="active">Tracking</a></li>
+      <li><a href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <div class="container" style="max-width: 900px;">
+    <!-- Manual Search Bar -->
+    <div class="glass-panel card" style="margin-bottom: 25px; padding: 15px 25px;">
+      <div style="display: flex; gap: 15px; align-items: center;">
+        <input type="text" id="search-id" placeholder="Enter Order ID" style="flex-grow: 1;">
+        <button class="btn btn-primary" onclick="trackManual()">Track Shipment</button>
+      </div>
+    </div>
+
+    <!-- Tracking Main Grid -->
+    <div class="grid-2" id="tracking-content" style="display: none;">
+      <!-- Left side: Order Info -->
+      <div class="glass-panel card">
+        <h3 style="margin-bottom: 20px; border-bottom: 1px solid var(--border-glass); padding-bottom: 10px;">
+          Order Details
+        </h3>
+        
+        <div style="display: flex; flex-direction: column; gap: 15px; font-size: 14px;">
+          <div class="flex-between">
+            <span style="color: var(--text-secondary);">Shipment ID:</span>
+            <span id="detail-id" style="font-weight: 600;"></span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-secondary);">Status:</span>
+            <span id="detail-status"></span>
+          </div>
+          <div>
+            <span style="color: var(--text-secondary); display: block; margin-bottom: 4px;">Pickup Address:</span>
+            <span id="detail-pickup" style="font-weight: 500;"></span>
+          </div>
+          <div>
+            <span style="color: var(--text-secondary); display: block; margin-bottom: 4px;">Drop Address:</span>
+            <span id="detail-drop" style="font-weight: 500;"></span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-secondary);">Agent Assigned:</span>
+            <span id="detail-agent" style="font-weight: 600;">None</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-secondary);">Total Bill:</span>
+            <span id="detail-bill" style="font-weight: 700; color: var(--color-success);"></span>
+          </div>
+        </div>
+
+        <!-- Reschedule Section -->
+        <div id="reschedule-container" style="display: none; border-top: 1px dashed var(--border-glass); margin-top: 25px; padding-top: 20px;">
+          <h4 style="color: var(--color-warning); margin-bottom: 10px;">Reschedule Delivery</h4>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">
+            This shipment failed to deliver. Please select a new date to request another attempt.
+          </p>
+          <form id="reschedule-form" style="display: flex; gap: 10px;">
+            <input type="date" id="new-delivery-date" required style="flex-grow: 1;">
+            <button type="submit" class="btn btn-primary">Reschedule</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Right side: Timeline -->
+      <div class="glass-panel card">
+        <h3 style="margin-bottom: 20px; border-bottom: 1px solid var(--border-glass); padding-bottom: 10px;">
+          Transit Timeline
+        </h3>
+        <div class="timeline" id="timeline-container">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Error or Placeholder -->
+    <div id="no-track" class="glass-panel card text-center" style="padding: 50px;">
+      <h3 style="color: var(--text-secondary); margin-bottom: 10px;">No shipment currently selected</h3>
+      <p style="color: var(--text-secondary); font-size: 14px;">
+        Please input a valid UUID order identifier in the input block above.
+      </p>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    const user = getUser();
+    
+    // Customize home dashboard link depending on role
+    const homeLink = document.getElementById('home-link');
+    if (user.role === 'admin') homeLink.href = '/admin/dashboard.html';
+    else if (user.role === 'customer') homeLink.href = '/customer/dashboard.html';
+    else homeLink.href = '/agent/dashboard.html';
+
+    async function loadTracking(orderId) {
+      if (!orderId) return;
+      
+      try {
+        const order = await apiFetch(`/api/orders/${orderId}`);
+        document.getElementById('no-track').style.display = 'none';
+        document.getElementById('tracking-content').style.display = 'grid';
+
+        // Render details
+        document.getElementById('detail-id').innerText = order.id;
+        document.getElementById('detail-status').innerHTML = `<span class="badge badge-${order.status.toLowerCase().replace(/\s/g, '')}">${order.status}</span>`;
+        document.getElementById('detail-pickup').innerText = order.pickup_address;
+        document.getElementById('detail-drop').innerText = order.drop_address;
+        document.getElementById('detail-agent').innerText = order.agent ? `${order.agent.name} (${order.agent.phone || 'No Phone'})` : 'Not Assigned';
+        document.getElementById('detail-bill').innerText = `$${parseFloat(order.total_charge).toFixed(2)}`;
+
+        // Render Reschedule block if failed & user is customer
+        const rescheduleBlock = document.getElementById('reschedule-container');
+        if (order.status === 'Failed' && user.role === 'customer') {
+          rescheduleBlock.style.display = 'block';
+          // Set min date of date picker to tomorrow
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          document.getElementById('new-delivery-date').min = tomorrow.toISOString().split('T')[0];
+        } else {
+          rescheduleBlock.style.display = 'none';
+        }
+
+        // Render Timeline
+        renderTimeline(order.trackingHistory);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderTimeline(history) {
+      const container = document.getElementById('timeline-container');
+      if (!history || history.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary);">No history found.</p>';
+        return;
+      }
+
+      container.innerHTML = history.map((event, idx) => {
+        const date = new Date(event.createdAt).toLocaleString();
+        const isLatest = idx === history.length - 1;
+        return `
+          <div class="timeline-item ${isLatest ? 'active' : ''}">
+            <div class="timeline-time">${date}</div>
+            <div class="timeline-title">${event.status} <span style="font-size: 11px; font-weight: normal; color: var(--text-secondary);">by ${event.actor_role}</span></div>
+            <div class="timeline-desc">${event.notes || ''}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function trackManual() {
+      const id = document.getElementById('search-id').value.trim();
+      if (!id) {
+        showToast('Please type an order identifier.', 'error');
+        return;
+      }
+      window.history.pushState({}, '', `?id=${id}`);
+      loadTracking(id);
+    }
+
+    // Capture query param on load
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('id');
+    if (orderId) {
+      document.getElementById('search-id').value = orderId;
+      loadTracking(orderId);
+    }
+
+    // Handle rescheduling form submission
+    document.getElementById('reschedule-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const date = document.getElementById('new-delivery-date').value;
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+
+      try {
+        await apiFetch(`/api/orders/${id}/reschedule`, {
+          method: 'POST',
+          body: JSON.stringify({ rescheduled_date: date })
+        });
+
+        showToast('Delivery rescheduled and agent reassigned successfully!', 'success');
+        // Reload details
+        setTimeout(() => loadTracking(id), 1200);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>

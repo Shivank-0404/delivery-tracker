@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rate Cards — Delivery Tracker</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="bg-gradient-deco"></div>
+  <div class="bg-gradient-deco-left"></div>
+
+  <!-- Navigation -->
+  <nav class="navbar glass-panel container">
+    <a href="#" class="brand">🚚 Last-Mile Delivery Tracker <span style="font-size: 12px; font-weight: normal; color: var(--color-accent);">[Admin Portal]</span></a>
+    <ul class="nav-links">
+      <li><a href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <div class="container admin-layout">
+    <!-- Sidebar -->
+    <div class="glass-panel sidebar">
+      <a href="/admin/dashboard.html">Overview</a>
+      <a href="/admin/zones.html">Manage Zones</a>
+      <a href="/admin/rate-cards.html" class="active">Rate Cards</a>
+      <a href="/admin/orders.html">Orders Queue</a>
+      <a href="/admin/agents.html">Agents Matrix</a>
+    </div>
+
+    <!-- Main Content Panel -->
+    <div class="main-content">
+      <div class="flex-between">
+        <h2>Rate Cards & Surcharges</h2>
+        <button class="btn btn-primary" onclick="openRateModal()">Configure Rate Card</button>
+      </div>
+
+      <div class="glass-panel card" style="margin-top: 15px;">
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Order Type</th>
+                <th>From Zone</th>
+                <th>To Zone</th>
+                <th>Base Price</th>
+                <th>Price / kg</th>
+                <th>COD Surcharge %</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rates-tbody">
+              <tr>
+                <td colspan="7" class="text-center" style="color: var(--text-secondary); padding: 30px;">
+                  Loading configurations...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rate Card Config Modal -->
+  <div class="modal-backdrop" id="rate-modal">
+    <div class="glass-panel modal-content" style="max-width: 550px;">
+      <h3>Configure Rate Card Rule</h3>
+      <form id="rate-form">
+        <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+          <div class="form-group">
+            <label for="rate-type">Order Profile Type</label>
+            <select id="rate-type" required>
+              <option value="B2C">B2C (Retail Delivery)</option>
+              <option value="B2B">B2B (Business Delivery)</option>
+            </select>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="form-group">
+              <label for="from-zone">Origin Zone</label>
+              <select id="from-zone" required>
+                <!-- Loaded dynamically -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="to-zone">Destination Zone</label>
+              <select id="to-zone" required>
+                <!-- Loaded dynamically -->
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+            <div class="form-group">
+              <label for="base-price">Base Price ($)</label>
+              <input type="number" step="0.01" id="base-price" required placeholder="50.00">
+            </div>
+            <div class="form-group">
+              <label for="price-per-kg">Price / kg ($)</label>
+              <input type="number" step="0.01" id="price-per-kg" required placeholder="5.00">
+            </div>
+            <div class="form-group">
+              <label for="cod-pct">COD Surcharge %</label>
+              <input type="number" step="0.01" id="cod-pct" value="0.00" placeholder="2.50">
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-end margin-top-20">
+          <button type="button" class="btn btn-secondary" onclick="closeRateModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Rules</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth('admin');
+
+    let zonesList = [];
+
+    async function init() {
+      await loadZones();
+      await loadRateCards();
+    }
+
+    async function loadZones() {
+      try {
+        zonesList = await apiFetch('/api/zones');
+        const fromSelect = document.getElementById('from-zone');
+        const toSelect = document.getElementById('to-zone');
+
+        const optionsHtml = zonesList.map(z => `<option value="${z.id}">${z.name}</option>`).join('');
+        fromSelect.innerHTML = optionsHtml;
+        toSelect.innerHTML = optionsHtml;
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function loadRateCards() {
+      try {
+        const rateCards = await apiFetch('/api/rate-cards');
+        renderRateCards(rateCards);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderRateCards(rateCards) {
+      const tbody = document.getElementById('rates-tbody');
+      if (rateCards.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center" style="color: var(--text-secondary); padding: 30px;">
+              No pricing configuration created yet. Standardize shipping prices by adding rate cards.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = rateCards.map(rc => `
+        <tr>
+          <td><strong style="color: var(--color-primary);">${rc.order_type}</strong></td>
+          <td>${rc.fromZone ? rc.fromZone.name : 'Unknown Zone'}</td>
+          <td>${rc.toZone ? rc.toZone.name : 'Unknown Zone'}</td>
+          <td>$${parseFloat(rc.base_price).toFixed(2)}</td>
+          <td>$${parseFloat(rc.price_per_kg).toFixed(2)}</td>
+          <td>${parseFloat(rc.cod_surcharge_pct).toFixed(2)}%</td>
+          <td>
+            <button class="btn btn-danger btn-sm" onclick="deleteRateCard('${rc.id}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Modal management
+    function openRateModal() {
+      if (zonesList.length === 0) {
+        showToast('Please create zones first before configuring pricing rate cards.', 'error');
+        return;
+      }
+      document.getElementById('rate-modal').classList.add('active');
+    }
+    
+    function closeRateModal() {
+      document.getElementById('rate-modal').classList.remove('active');
+      document.getElementById('rate-form').reset();
+    }
+
+    // Form submit
+    document.getElementById('rate-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        order_type: document.getElementById('rate-type').value,
+        from_zone_id: document.getElementById('from-zone').value,
+        to_zone_id: document.getElementById('to-zone').value,
+        base_price: parseFloat(document.getElementById('base-price').value),
+        price_per_kg: parseFloat(document.getElementById('price-per-kg').value),
+        cod_surcharge_pct: parseFloat(document.getElementById('cod-pct').value || 0)
+      };
+
+      try {
+        await apiFetch('/api/rate-cards', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        showToast('Pricing card successfully configured!');
+        closeRateModal();
+        loadRateCards();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    async function deleteRateCard(id) {
+      if (!confirm('Permanently delete this pricing card?')) return;
+      try {
+        await apiFetch(`/api/rate-cards/${id}`, {
+          method: 'DELETE'
+        });
+        showToast('Rate card removed.');
+        loadRateCards();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

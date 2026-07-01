@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Dashboard — Delivery Tracker</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="bg-gradient-deco"></div>
+  <div class="bg-gradient-deco-left"></div>
+
+  <!-- Navigation -->
+  <nav class="navbar glass-panel container">
+    <a href="#" class="brand">🚚 Last-Mile Delivery Tracker <span style="font-size: 12px; font-weight: normal; color: var(--color-accent);">[Agent Portal]</span></a>
+    <ul class="nav-links">
+      <li><a href="/agent/dashboard.html" class="active">My Tasks</a></li>
+      <li><a href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <div class="container">
+    <div class="flex-between margin-top-20" style="margin-bottom: 20px;">
+      <h2 id="agent-welcome">Welcome, Delivery Partner!</h2>
+      <button class="btn btn-secondary" onclick="loadTasks()">Refresh Queue</button>
+    </div>
+
+    <!-- Active Tasks Queue -->
+    <div class="glass-panel card">
+      <div class="card-header">
+        <h3 class="card-title">Your Delivery Assignments</h3>
+      </div>
+      <div style="overflow-x: auto;">
+        <table id="tasks-table">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Phone</th>
+              <th>Addresses (Pickup ➔ Drop)</th>
+              <th>Payment Profile</th>
+              <th>Current Status</th>
+              <th>Actions / Transitions</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-tbody">
+            <tr>
+              <td colspan="7" class="text-center" style="padding: 30px;">Loading assignments...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log Status Modal -->
+  <div class="modal-backdrop" id="transition-modal">
+    <div class="glass-panel modal-content">
+      <h3 id="modal-trans-title">Log Shipment Transition</h3>
+      <form id="transition-form">
+        <input type="hidden" id="trans-order-id">
+        <input type="hidden" id="trans-status">
+        
+        <div class="form-group">
+          <label for="trans-notes">Transition Log Notes</label>
+          <textarea id="trans-notes" required placeholder="Describe status update context (e.g. package picked up, left with neighbor, door locked)"></textarea>
+        </div>
+        
+        <div class="flex-end">
+          <button type="button" class="btn btn-secondary" onclick="closeTransitionModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm Log</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth('agent');
+
+    const user = getUser();
+    document.getElementById('agent-welcome').innerText = `Partner Terminal: ${user.name}`;
+
+    async function loadTasks() {
+      try {
+        const orders = await apiFetch('/api/orders');
+        renderTasks(orders);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderTasks(orders) {
+      const tbody = document.getElementById('tasks-tbody');
+      
+      // Filter out Delivered and Failed so we focus on active tasks
+      const activeOrders = orders.filter(o => o.status !== 'Delivered');
+
+      if (activeOrders.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center" style="color: var(--text-secondary); padding: 30px;">
+              You have no active delivery jobs. Sit tight or contact administrator.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = activeOrders.map(o => {
+        let actionsHtml = '';
+        
+        if (o.status === 'Assigned') {
+          actionsHtml = `<button class="btn btn-primary btn-sm" onclick="openTransition('${o.id}', 'Picked Up')">Picked Up</button>`;
+        } else if (o.status === 'Picked Up') {
+          actionsHtml = `<button class="btn btn-primary btn-sm" onclick="openTransition('${o.id}', 'In Transit')">In Transit</button>`;
+        } else if (o.status === 'In Transit') {
+          actionsHtml = `<button class="btn btn-primary btn-sm" onclick="openTransition('${o.id}', 'Out for Delivery')">Out for Delivery</button>`;
+        } else if (o.status === 'Out for Delivery') {
+          actionsHtml = `
+            <div style="display: flex; gap: 5px;">
+              <button class="btn btn-success btn-sm" onclick="openTransition('${o.id}', 'Delivered')">Delivered</button>
+              <button class="btn btn-danger btn-sm" onclick="openTransition('${o.id}', 'Failed')">Failed</button>
+            </div>
+          `;
+        } else if (o.status === 'Failed') {
+          actionsHtml = `<span style="color: var(--text-secondary);">Awaiting Reschedule</span>`;
+        }
+
+        const pickupStr = o.pickup_address.split(',')[0];
+        const dropStr = o.drop_address.split(',')[0];
+
+        return `
+          <tr>
+            <td><code style="color: var(--color-primary);">${o.id.slice(0, 8)}</code></td>
+            <td>${o.customer ? o.customer.name : 'Unknown'}</td>
+            <td>${o.customer ? o.customer.phone || 'N/A' : 'N/A'}</td>
+            <td>${pickupStr} ➔ ${dropStr}</td>
+            <td>${o.payment_type} ($${parseFloat(o.total_charge).toFixed(2)})</td>
+            <td><span class="badge badge-${o.status.toLowerCase().replace(/\s/g, '')}">${o.status}</span></td>
+            <td>${actionsHtml}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Modal management
+    function openTransition(orderId, nextStatus) {
+      document.getElementById('trans-order-id').value = orderId;
+      document.getElementById('trans-status').value = nextStatus;
+      document.getElementById('modal-trans-title').innerText = `Transition shipment to: ${nextStatus}`;
+      
+      // Default placeholder text based on transition
+      const notes = document.getElementById('trans-notes');
+      if (nextStatus === 'Picked Up') notes.placeholder = 'e.g. Package collected from sender';
+      else if (nextStatus === 'In Transit') notes.placeholder = 'e.g. Package is in transit to distribution hub';
+      else if (nextStatus === 'Out for Delivery') notes.placeholder = 'e.g. Out with delivery courier';
+      else if (nextStatus === 'Delivered') notes.placeholder = 'e.g. Delivered to recipient, signature captured';
+      else if (nextStatus === 'Failed') notes.placeholder = 'e.g. Recipient door locked, phone unanswered after 3 tries';
+
+      document.getElementById('transition-modal').classList.add('active');
+    }
+    
+    function closeTransitionModal() {
+      document.getElementById('transition-modal').classList.remove('active');
+      document.getElementById('transition-form').reset();
+    }
+
+    // Submit log transition
+    document.getElementById('transition-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const orderId = document.getElementById('trans-order-id').value;
+      const status = document.getElementById('trans-status').value;
+      const notes = document.getElementById('trans-notes').value;
+
+      try {
+        await apiFetch(`/api/orders/${orderId}/status`, {
+          method: 'POST',
+          body: JSON.stringify({ status, notes })
+        });
+        showToast('Shipment status updated successfully!');
+        closeTransitionModal();
+        loadTasks();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    loadTasks();
+
+    // Auto poll updates every 30 seconds
+    setInterval(loadTasks, 30000);
+  </script>
+</body>
+</html>

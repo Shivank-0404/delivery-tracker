@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Zones — Delivery Tracker</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="bg-gradient-deco"></div>
+  <div class="bg-gradient-deco-left"></div>
+
+  <!-- Navigation -->
+  <nav class="navbar glass-panel container">
+    <a href="#" class="brand">🚚 Last-Mile Delivery Tracker <span style="font-size: 12px; font-weight: normal; color: var(--color-accent);">[Admin Portal]</span></a>
+    <ul class="nav-links">
+      <li><a href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <div class="container admin-layout">
+    <!-- Sidebar -->
+    <div class="glass-panel sidebar">
+      <a href="/admin/dashboard.html">Overview</a>
+      <a href="/admin/zones.html" class="active">Manage Zones</a>
+      <a href="/admin/rate-cards.html">Rate Cards</a>
+      <a href="/admin/orders.html">Orders Queue</a>
+      <a href="/admin/agents.html">Agents Matrix</a>
+    </div>
+
+    <!-- Main Content Panel -->
+    <div class="main-content">
+      <div class="flex-between">
+        <h2>Geographical Zones & Routing</h2>
+        <button class="btn btn-primary" onclick="openZoneModal()">Add New Zone</button>
+      </div>
+
+      <div id="zones-list" style="display: flex; flex-direction: column; gap: 20px; margin-top: 15px;">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Zone Modal -->
+  <div class="modal-backdrop" id="zone-modal">
+    <div class="glass-panel modal-content">
+      <h3 id="modal-title">Create Routing Zone</h3>
+      <form id="zone-form">
+        <div class="form-group">
+          <label for="zone-name">Zone Name</label>
+          <input type="text" id="zone-name" required placeholder="e.g. Zone Delhi-NCR">
+        </div>
+        <div class="form-group">
+          <label for="zone-desc">Description</label>
+          <textarea id="zone-desc" placeholder="Details about this zone coverage"></textarea>
+        </div>
+        <div class="flex-end">
+          <button type="button" class="btn btn-secondary" onclick="closeZoneModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Zone</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Area Keyword Modal -->
+  <div class="modal-backdrop" id="area-modal">
+    <div class="glass-panel modal-content">
+      <h3>Add Area Keyword</h3>
+      <form id="area-form">
+        <input type="hidden" id="area-zone-id">
+        <div class="form-group">
+          <label for="area-keyword">Area Keyword (e.g. ZIP code, city name, neighbourhood)</label>
+          <input type="text" id="area-keyword" required placeholder="e.g. 110001 or Bandra">
+          <span style="font-size: 11px; color: var(--text-secondary); margin-top: 5px;">
+            Addresses containing this keyword will be auto-resolved to this zone.
+          </span>
+        </div>
+        <div class="flex-end">
+          <button type="button" class="btn btn-secondary" onclick="closeAreaModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Keyword</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth('admin');
+
+    async function loadZones() {
+      try {
+        const zones = await apiFetch('/api/zones');
+        renderZones(zones);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderZones(zones) {
+      const container = document.getElementById('zones-list');
+      if (zones.length === 0) {
+        container.innerHTML = `
+          <div class="glass-panel card text-center" style="padding: 40px;">
+            <p style="color: var(--text-secondary);">No zones configured. Create a zone to define rate policies.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = zones.map(zone => {
+        const areaPills = zone.areas && zone.areas.length > 0 
+          ? zone.areas.map(area => `
+              <span class="area-keyword-pill">
+                ${area.area_keyword}
+                <button onclick="removeKeyword('${zone.id}', '${area.id}')">&times;</button>
+              </span>
+            `).join('')
+          : `<span style="font-size: 13px; color: var(--text-secondary);">No keywords mapped yet.</span>`;
+
+        return `
+          <div class="glass-panel card">
+            <div class="flex-between" style="margin-bottom: 15px; border-bottom: 1px solid var(--border-glass); padding-bottom: 10px;">
+              <div>
+                <h3 style="color: var(--color-primary);">${zone.name}</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 3px;">${zone.description || 'No description provided.'}</p>
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary btn-sm" onclick="openAreaModal('${zone.id}')">+ Add Keyword</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteZone('${zone.id}')">Delete Zone</button>
+              </div>
+            </div>
+            
+            <div>
+              <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 8px;">
+                Mapped Area Keywords:
+              </span>
+              <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                ${areaPills}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Modal management
+    function openZoneModal() {
+      document.getElementById('zone-modal').classList.add('active');
+    }
+    function closeZoneModal() {
+      document.getElementById('zone-modal').classList.remove('active');
+      document.getElementById('zone-form').reset();
+    }
+
+    function openAreaModal(zoneId) {
+      document.getElementById('area-zone-id').value = zoneId;
+      document.getElementById('area-modal').classList.add('active');
+    }
+    function closeAreaModal() {
+      document.getElementById('area-modal').classList.remove('active');
+      document.getElementById('area-form').reset();
+    }
+
+    // Submissions
+    document.getElementById('zone-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('zone-name').value;
+      const description = document.getElementById('zone-desc').value;
+
+      try {
+        await apiFetch('/api/zones', {
+          method: 'POST',
+          body: JSON.stringify({ name, description })
+        });
+        showToast('Zone added successfully!');
+        closeZoneModal();
+        loadZones();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    document.getElementById('area-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const zoneId = document.getElementById('area-zone-id').value;
+      const keyword = document.getElementById('area-keyword').value;
+
+      try {
+        await apiFetch(`/api/zones/${zoneId}/areas`, {
+          method: 'POST',
+          body: JSON.stringify({ area_keyword: keyword })
+        });
+        showToast('Keyword added successfully!');
+        closeAreaModal();
+        loadZones();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    async function removeKeyword(zoneId, areaId) {
+      if (!confirm('Are you sure you want to delete this keyword mapping?')) return;
+      try {
+        await apiFetch(`/api/zones/${zoneId}/areas/${areaId}`, {
+          method: 'DELETE'
+        });
+        showToast('Keyword removed.');
+        loadZones();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function deleteZone(id) {
+      if (!confirm('Delete this zone? All associated rate cards and mappings will be permanently removed.')) return;
+      try {
+        await apiFetch(`/api/zones/${id}`, {
+          method: 'DELETE'
+        });
+        showToast('Zone deleted.');
+        loadZones();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    loadZones();
+  </script>
+</body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orders Queue — Delivery Tracker</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="bg-gradient-deco"></div>
+  <div class="bg-gradient-deco-left"></div>
+
+  <!-- Navigation -->
+  <nav class="navbar glass-panel container">
+    <a href="#" class="brand">🚚 Last-Mile Delivery Tracker <span style="font-size: 12px; font-weight: normal; color: var(--color-accent);">[Admin Portal]</span></a>
+    <ul class="nav-links">
+      <li><a href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <div class="container admin-layout">
+    <!-- Sidebar -->
+    <div class="glass-panel sidebar">
+      <a href="/admin/dashboard.html">Overview</a>
+      <a href="/admin/zones.html">Manage Zones</a>
+      <a href="/admin/rate-cards.html">Rate Cards</a>
+      <a href="/admin/orders.html" class="active">Orders Queue</a>
+      <a href="/admin/agents.html">Agents Matrix</a>
+    </div>
+
+    <!-- Main Content Panel -->
+    <div class="main-content">
+      <div class="flex-between">
+        <h2>Order Logistics Queue</h2>
+        <button class="btn btn-primary" onclick="openCreateOrderModal()">Create Order</button>
+      </div>
+
+      <!-- Queue Filters -->
+      <div class="glass-panel card" style="padding: 15px 25px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 15px; align-items: end;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="filter-status">Filter by Status</label>
+            <select id="filter-status" onchange="loadOrders()">
+              <option value="">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Assigned">Assigned</option>
+              <option value="Picked Up">Picked Up</option>
+              <option value="In Transit">In Transit</option>
+              <option value="Out for Delivery">Out for Delivery</option>
+              <option value="Delivered">Delivered</option>
+              <option value="Failed">Failed</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="filter-type">Filter by Profile Type</label>
+            <select id="filter-type" onchange="loadOrders()">
+              <option value="">All Types</option>
+              <option value="B2C">B2C</option>
+              <option value="B2B">B2B</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="filter-payment">Filter by Payment</label>
+            <select id="filter-payment" onchange="loadOrders()">
+              <option value="">All Payments</option>
+              <option value="Prepaid">Prepaid</option>
+              <option value="COD">COD</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+        </div>
+      </div>
+
+      <!-- Orders List -->
+      <div class="glass-panel card">
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Addresses (Pickup ➔ Drop)</th>
+                <th>Weight</th>
+                <th>Bill</th>
+                <th>Status</th>
+                <th>Agent</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="orders-tbody">
+              <tr>
+                <td colspan="8" class="text-center" style="padding: 30px;">Loading shipments...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Order Modal (On behalf of Customer) -->
+  <div class="modal-backdrop" id="create-modal">
+    <div class="glass-panel modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+      <h3>Create Shipment on Behalf</h3>
+      <form id="create-order-form">
+        <div class="form-group">
+          <label for="order-customer">Select Customer Account</label>
+          <select id="order-customer" required>
+            <!-- Loaded dynamically -->
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="pickup-address">Pickup Address</label>
+          <input type="text" id="pickup-address" required placeholder="e.g. 110001 Connaught Place, New Delhi">
+        </div>
+        <div class="form-group">
+          <label for="drop-address">Drop Address</label>
+          <input type="text" id="drop-address" required placeholder="e.g. Andheri East, Mumbai">
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div class="form-group">
+            <label for="order-type">Order Type</label>
+            <select id="order-type" required>
+              <option value="B2C">B2C</option>
+              <option value="B2B">B2B</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="payment-type">Payment Type</label>
+            <select id="payment-type" required>
+              <option value="Prepaid">Prepaid</option>
+              <option value="COD">COD</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <div class="form-group">
+            <label for="length">Length (cm)</label>
+            <input type="number" id="length" min="1" required placeholder="L">
+          </div>
+          <div class="form-group">
+            <label for="breadth">Breadth (cm)</label>
+            <input type="number" id="breadth" min="1" required placeholder="B">
+          </div>
+          <div class="form-group">
+            <label for="height">Height (cm)</label>
+            <input type="number" id="height" min="1" required placeholder="H">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="actual-weight">Actual Weight (kg)</label>
+          <input type="number" step="0.1" id="actual-weight" min="0.1" required placeholder="e.g. 3.4">
+        </div>
+
+        <div class="flex-end margin-top-20">
+          <button type="button" class="btn btn-secondary" onclick="closeCreateOrderModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Book & Calc Surcharges</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manual Agent Assignment Modal -->
+  <div class="modal-backdrop" id="assign-modal">
+    <div class="glass-panel modal-content">
+      <h3>Assign Agent Manually</h3>
+      <form id="assign-form">
+        <input type="hidden" id="assign-order-id">
+        <div class="form-group">
+          <label for="assign-agent">Select Available Agent</label>
+          <select id="assign-agent" required>
+            <!-- Loaded dynamically -->
+          </select>
+        </div>
+        <div class="flex-end">
+          <button type="button" class="btn btn-secondary" onclick="closeAssignModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Assign Agent</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Update Status Modal -->
+  <div class="modal-backdrop" id="status-modal">
+    <div class="glass-panel modal-content">
+      <h3>Log Order Transition</h3>
+      <form id="status-form">
+        <input type="hidden" id="status-order-id">
+        <div class="form-group">
+          <label for="update-status">Next Status</label>
+          <select id="update-status" required>
+            <option value="Assigned">Assigned</option>
+            <option value="Picked Up">Picked Up</option>
+            <option value="In Transit">In Transit</option>
+            <option value="Out for Delivery">Out for Delivery</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Failed">Failed</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="status-notes">Update Notes (Optional)</label>
+          <textarea id="status-notes" placeholder="Notes for tracking history / customer notification"></textarea>
+        </div>
+        <div class="flex-end">
+          <button type="button" class="btn btn-secondary" onclick="closeStatusModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth('admin');
+
+    let agentsList = [];
+
+    async function init() {
+      await loadOrders();
+      await fetchAgentsAndCustomers();
+    }
+
+    async function loadOrders() {
+      const status = document.getElementById('filter-status').value;
+      const type = document.getElementById('filter-type').value;
+      const payment = document.getElementById('filter-payment').value;
+
+      let query = '';
+      const params = [];
+      if (status) params.push(`status=${status}`);
+      if (type) params.push(`order_type=${type}`);
+      if (payment) params.push(`payment_type=${payment}`);
+      if (params.length > 0) query = '?' + params.join('&');
+
+      try {
+        const orders = await apiFetch(`/api/orders${query}`);
+        renderOrders(orders);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function fetchAgentsAndCustomers() {
+      try {
+        agentsList = await apiFetch('/api/agents');
+        // Fetch users to filter customers (poor man's customer fetch - admin can look up customer users)
+        // Since we don't have user search API endpoint, let's look up orders to find customers, 
+        // or register customer directly. Let's search all orders to compile users list.
+        const orders = await apiFetch('/api/orders');
+        const custSelect = document.getElementById('order-customer');
+        const custMap = {};
+        orders.forEach(o => {
+          if (o.customer) custMap[o.customer.id] = o.customer.name;
+        });
+        
+        // Also fetch from current admin user just to have some defaults in case map is empty
+        const me = getUser();
+        custMap[me.id] = `${me.name} (Admin Self)`;
+
+        custSelect.innerHTML = Object.entries(custMap).map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    function renderOrders(orders) {
+      const tbody = document.getElementById('orders-tbody');
+      if (orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center">No orders match these criteria.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = orders.map(o => {
+        const pickupStr = o.pickup_address.split(',')[0];
+        const dropStr = o.drop_address.split(',')[0];
+        const agentName = o.agent ? o.agent.name : `<span style="color: var(--text-secondary);">None</span>`;
+
+        return `
+          <tr>
+            <td><code style="color: var(--color-primary);">${o.id.slice(0, 8)}</code></td>
+            <td>${o.customer ? o.customer.name : 'Unknown'}</td>
+            <td>${pickupStr} ➔ ${dropStr}</td>
+            <td>${parseFloat(o.billed_weight).toFixed(1)} kg</td>
+            <td>$${parseFloat(o.total_charge).toFixed(2)}</td>
+            <td><span class="badge badge-${o.status.toLowerCase().replace(/\s/g, '')}">${o.status}</span></td>
+            <td>${agentName}</td>
+            <td>
+              <div style="display: flex; gap: 5px;">
+                <button class="btn btn-secondary btn-sm" onclick="openAssignModal('${o.id}')">Manual</button>
+                <button class="btn btn-secondary btn-sm" onclick="autoAssignAgent('${o.id}')">Auto</button>
+                <button class="btn btn-secondary btn-sm" onclick="openStatusModal('${o.id}', '${o.status}')">Status</button>
+                <a href="/customer/track.html?id=${o.id}" class="btn btn-primary btn-sm">Timeline</a>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-status').value = '';
+      document.getElementById('filter-type').value = '';
+      document.getElementById('filter-payment').value = '';
+      loadOrders();
+    }
+
+    // Modal helpers
+    function openCreateOrderModal() {
+      document.getElementById('create-modal').classList.add('active');
+    }
+    function closeCreateOrderModal() {
+      document.getElementById('create-modal').classList.remove('active');
+      document.getElementById('create-order-form').reset();
+    }
+
+    function openAssignModal(orderId) {
+      document.getElementById('assign-order-id').value = orderId;
+      const select = document.getElementById('assign-agent');
+      
+      const available = agentsList.filter(a => a.is_available);
+      if (available.length === 0) {
+        showToast('No delivery agents are currently available.', 'error');
+        return;
+      }
+
+      select.innerHTML = available.map(a => `<option value="${a.id}">${a.name} (${a.zone ? a.zone.name : 'No Zone'})</option>`).join('');
+      document.getElementById('assign-modal').classList.add('active');
+    }
+    function closeAssignModal() {
+      document.getElementById('assign-modal').classList.remove('active');
+    }
+
+    function openStatusModal(orderId, currentStatus) {
+      document.getElementById('status-order-id').value = orderId;
+      document.getElementById('update-status').value = currentStatus;
+      document.getElementById('status-modal').classList.add('active');
+    }
+    function closeStatusModal() {
+      document.getElementById('status-modal').classList.remove('active');
+      document.getElementById('status-notes').value = '';
+    }
+
+    // Trigger auto assign agent using Haversine algorithm
+    async function autoAssignAgent(orderId) {
+      try {
+        const res = await apiFetch(`/api/orders/${orderId}/auto-assign`, {
+          method: 'POST'
+        });
+        showToast(res.message);
+        loadOrders();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Submissions
+    document.getElementById('create-order-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        customerId: document.getElementById('order-customer').value,
+        pickupAddress: document.getElementById('pickup-address').value,
+        dropAddress: document.getElementById('drop-address').value,
+        orderType: document.getElementById('order-type').value,
+        paymentType: document.getElementById('payment-type').value,
+        length: parseFloat(document.getElementById('length').value),
+        breadth: parseFloat(document.getElementById('breadth').value),
+        height: parseFloat(document.getElementById('height').value),
+        actualWeight: parseFloat(document.getElementById('actual-weight').value)
+      };
+
+      try {
+        await apiFetch('/api/orders', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        showToast('Order successfully created on behalf of customer!');
+        closeCreateOrderModal();
+        loadOrders();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    document.getElementById('assign-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const orderId = document.getElementById('assign-order-id').value;
+      const agentId = document.getElementById('assign-agent').value;
+
+      try {
+        await apiFetch(`/api/orders/${orderId}/assign`, {
+          method: 'PUT',
+          body: JSON.stringify({ agent_id: agentId })
+        });
+        showToast('Delivery agent manually assigned.');
+        closeAssignModal();
+        loadOrders();
+        // Refresh local agents list state
+        agentsList = await apiFetch('/api/agents');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    document.getElementById('status-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const orderId = document.getElementById('status-order-id').value;
+      const status = document.getElementById('update-status').value;
+      const notes = document.getElementById('status-notes').value;
+
+      try {
+        await apiFetch(`/api/orders/${orderId}/status`, {
+          method: 'POST',
+          body: JSON.stringify({ status, notes })
+        });
+        showToast('Status updated successfully!');
+        closeStatusModal();
+        loadOrders();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

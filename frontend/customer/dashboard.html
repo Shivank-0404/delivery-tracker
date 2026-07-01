@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Dashboard — Delivery Tracker</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="bg-gradient-deco"></div>
+  <div class="bg-gradient-deco-left"></div>
+
+  <!-- Navigation -->
+  <nav class="navbar glass-panel container">
+    <a href="#" class="brand">🚚 Last-Mile Delivery Tracker</a>
+    <ul class="nav-links">
+      <li><a href="/customer/dashboard.html" class="active">Dashboard</a></li>
+      <li><a href="/customer/place-order.html">Place Order</a></li>
+      <li><a href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <!-- Dashboard Content -->
+  <div class="container">
+    <div class="flex-between margin-top-20" style="margin-bottom: 20px;">
+      <h2 id="welcome-msg">Welcome, Customer!</h2>
+      <a href="/customer/place-order.html" class="btn btn-primary">Place New Order</a>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid-4" style="margin-bottom: 35px;">
+      <div class="glass-panel stat-card primary">
+        <span class="stat-label">Total Orders</span>
+        <span id="stat-total" class="stat-value">0</span>
+      </div>
+      <div class="glass-panel stat-card warning">
+        <span class="stat-label">In Transit</span>
+        <span id="stat-transit" class="stat-value">0</span>
+      </div>
+      <div class="glass-panel stat-card success">
+        <span class="stat-label">Delivered</span>
+        <span id="stat-delivered" class="stat-value">0</span>
+      </div>
+      <div class="glass-panel stat-card danger">
+        <span class="stat-label">Failed Deliveries</span>
+        <span id="stat-failed" class="stat-value">0</span>
+      </div>
+    </div>
+
+    <!-- Recent Orders Table -->
+    <div class="glass-panel card">
+      <div class="card-header">
+        <h3 class="card-title">Your Recent Shipments</h3>
+      </div>
+      <div style="overflow-x: auto;">
+        <table id="orders-table">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Pickup Address</th>
+              <th>Drop Address</th>
+              <th>Total Charge</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="orders-tbody">
+            <tr>
+              <td colspan="6" class="text-center" style="color: var(--text-secondary); padding: 30px;">
+                Loading your shipments...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth('customer');
+    const user = getUser();
+    document.getElementById('welcome-msg').innerText = `Welcome back, ${user.name}!`;
+
+    async function loadDashboard() {
+      try {
+        const orders = await apiFetch('/api/orders');
+        renderStats(orders);
+        renderOrders(orders);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderStats(orders) {
+      const stats = { total: orders.length, transit: 0, delivered: 0, failed: 0 };
+      orders.forEach(o => {
+        if (o.status === 'In Transit' || o.status === 'Picked Up' || o.status === 'Out for Delivery' || o.status === 'Assigned') {
+          stats.transit++;
+        } else if (o.status === 'Delivered') {
+          stats.delivered++;
+        } else if (o.status === 'Failed') {
+          stats.failed++;
+        }
+      });
+
+      document.getElementById('stat-total').innerText = stats.total;
+      document.getElementById('stat-transit').innerText = stats.transit;
+      document.getElementById('stat-delivered').innerText = stats.delivered;
+      document.getElementById('stat-failed').innerText = stats.failed;
+    }
+
+    function renderOrders(orders) {
+      const tbody = document.getElementById('orders-tbody');
+      if (orders.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center" style="color: var(--text-secondary); padding: 30px;">
+              You have not placed any orders yet.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = orders.map(order => `
+        <tr>
+          <td><code style="color: var(--color-primary);">${order.id.slice(0, 8)}</code></td>
+          <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${order.pickup_address}</td>
+          <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${order.drop_address}</td>
+          <td>$${parseFloat(order.total_charge).toFixed(2)}</td>
+          <td><span class="badge badge-${order.status.toLowerCase().replace(/\s/g, '')}">${order.status}</span></td>
+          <td>
+            <a href="/customer/track.html?id=${order.id}" class="btn btn-secondary btn-sm">Track</a>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

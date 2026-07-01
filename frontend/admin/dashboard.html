@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — Delivery Tracker</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="bg-gradient-deco"></div>
+  <div class="bg-gradient-deco-left"></div>
+
+  <!-- Navigation -->
+  <nav class="navbar glass-panel container">
+    <a href="#" class="brand">🚚 Last-Mile Delivery Tracker <span style="font-size: 12px; font-weight: normal; color: var(--color-accent);">[Admin Portal]</span></a>
+    <ul class="nav-links">
+      <li><a href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <div class="container admin-layout">
+    <!-- Sidebar -->
+    <div class="glass-panel sidebar">
+      <a href="/admin/dashboard.html" class="active">Overview</a>
+      <a href="/admin/zones.html">Manage Zones</a>
+      <a href="/admin/rate-cards.html">Rate Cards</a>
+      <a href="/admin/orders.html">Orders Queue</a>
+      <a href="/admin/agents.html">Agents Matrix</a>
+    </div>
+
+    <!-- Main Content Panel -->
+    <div class="main-content">
+      <h2 style="margin-bottom: 5px;">Operational Insights</h2>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 15px;">Real-time shipment stats & network status</p>
+
+      <!-- Stats -->
+      <div class="grid-3">
+        <div class="glass-panel stat-card primary">
+          <span class="stat-label">Total Shipments Booked</span>
+          <span id="stat-total" class="stat-value">0</span>
+        </div>
+        <div class="glass-panel stat-card warning">
+          <span class="stat-label">Active Shipments (In Transit)</span>
+          <span id="stat-active" class="stat-value">0</span>
+        </div>
+        <div class="glass-panel stat-card success">
+          <span class="stat-label">Delivered Successfully</span>
+          <span id="stat-delivered" class="stat-value">0</span>
+        </div>
+        <div class="glass-panel stat-card danger">
+          <span class="stat-label">Delivery Exceptions (Failed)</span>
+          <span id="stat-failed" class="stat-value">0</span>
+        </div>
+        <div class="glass-panel stat-card info">
+          <span class="stat-label">Available Agents</span>
+          <span id="stat-agents" class="stat-value">0</span>
+        </div>
+        <div class="glass-panel stat-card primary">
+          <span class="stat-label">Pending Assignment</span>
+          <span id="stat-pending" class="stat-value">0</span>
+        </div>
+      </div>
+
+      <!-- Recent Orders List -->
+      <div class="glass-panel card">
+        <div class="card-header">
+          <h3 class="card-title">Recent System Events</h3>
+          <a href="/admin/orders.html" class="btn btn-secondary btn-sm">View All Queue</a>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Type</th>
+                <th>Payment</th>
+                <th>Total Bill</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="recent-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth('admin');
+
+    async function loadData() {
+      try {
+        const orders = await apiFetch('/api/orders');
+        const agents = await apiFetch('/api/agents');
+
+        // Compile counts
+        let total = orders.length;
+        let active = 0;
+        let delivered = 0;
+        let failed = 0;
+        let pending = 0;
+
+        orders.forEach(o => {
+          if (o.status === 'Pending') pending++;
+          else if (o.status === 'Delivered') delivered++;
+          else if (o.status === 'Failed') failed++;
+          else active++;
+        });
+
+        const availableAgents = agents.filter(a => a.is_available).length;
+
+        document.getElementById('stat-total').innerText = total;
+        document.getElementById('stat-active').innerText = active;
+        document.getElementById('stat-delivered').innerText = delivered;
+        document.getElementById('stat-failed').innerText = failed;
+        document.getElementById('stat-agents').innerText = availableAgents;
+        document.getElementById('stat-pending').innerText = pending;
+
+        // Render top 5 recent orders
+        const recentOrders = orders.slice(0, 5);
+        const tbody = document.getElementById('recent-tbody');
+        if (recentOrders.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" class="text-center">No orders registered in system yet.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = recentOrders.map(order => `
+          <tr>
+            <td><code style="color: var(--color-primary);">${order.id.slice(0, 8)}</code></td>
+            <td>${order.order_type}</td>
+            <td>${order.payment_type}</td>
+            <td>$${parseFloat(order.total_charge).toFixed(2)}</td>
+            <td><span class="badge badge-${order.status.toLowerCase().replace(/\s/g, '')}">${order.status}</span></td>
+          </tr>
+        `).join('');
+
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
