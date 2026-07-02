@@ -9,9 +9,11 @@ async function start() {
     await sequelize.authenticate();
     console.log('Database connection has been established successfully.');
     
-    // Synchronize models
-    await sequelize.sync({ alter: true });
-    console.log('Database models synchronized.');
+    // Synchronize models only in development
+    if (process.env.NODE_ENV !== 'production') {
+      await sequelize.sync({ alter: true });
+      console.log('Database models synchronized.');
+    }
 
     app.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
