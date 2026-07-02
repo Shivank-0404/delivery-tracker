@@ -10,7 +10,10 @@ const options = {
     },
     servers: [
       {
-        url: `http://localhost:${process.env.PORT || 5001}`
+        url:
+          process.env.NODE_ENV === 'production'
+            ? 'https://delivery-tracker-api.onrender.com'
+            : `http://localhost:${process.env.PORT || 5001}`
       }
     ],
     components: {
