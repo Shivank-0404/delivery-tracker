@@ -8,7 +8,7 @@ const roleGuard = require('../middlewares/roleGuard');
  * @swagger
  * tags:
  *   name: Rate Cards
- *   description: Delivery Rate Card Management APIs
+ *   description: Delivery pricing configuration APIs
  */
 
 router.use(auth, roleGuard('admin'));
@@ -17,7 +17,8 @@ router.use(auth, roleGuard('admin'));
  * @swagger
  * /api/rate-cards:
  *   get:
- *     summary: Get all rate cards
+ *     summary: Get all delivery rate cards
+ *     description: Returns all configured delivery pricing rules along with source and destination zone names.
  *     tags: [Rate Cards]
  *     security:
  *       - bearerAuth: []
@@ -32,6 +33,7 @@ router.get('/', rateCardController.listRateCards);
  * /api/rate-cards:
  *   post:
  *     summary: Create a new rate card
+ *     description: Creates a delivery pricing rule for a specific order type and zone pair.
  *     tags: [Rate Cards]
  *     security:
  *       - bearerAuth: []
@@ -42,32 +44,46 @@ router.get('/', rateCardController.listRateCards);
  *           schema:
  *             type: object
  *             required:
- *               - zone_id
  *               - order_type
- *               - weight_min
- *               - weight_max
- *               - price
+ *               - from_zone_id
+ *               - to_zone_id
+ *               - base_price
+ *               - price_per_kg
  *             properties:
- *               zone_id:
+ *               order_type:
+ *                 type: string
+ *                 enum:
+ *                   - B2B
+ *                   - B2C
+ *                 example: B2C
+ *
+ *               from_zone_id:
  *                 type: string
  *                 format: uuid
  *                 example: 3d671553-07f2-4975-b3e3-23cb65a98b81
- *               order_type:
+ *
+ *               to_zone_id:
  *                 type: string
- *                 enum: [B2B, B2C]
- *                 example: B2C
- *               weight_min:
+ *                 format: uuid
+ *                 example: a171f69e-82bf-41c7-b5ab-1241cbd8b029
+ *
+ *               base_price:
  *                 type: number
- *                 example: 0
- *               weight_max:
+ *                 example: 60
+ *
+ *               price_per_kg:
+ *                 type: number
+ *                 example: 20
+ *
+ *               cod_surcharge_pct:
  *                 type: number
  *                 example: 5
- *               price:
- *                 type: number
- *                 example: 110
+ *
  *     responses:
  *       201:
  *         description: Rate card created successfully
+ *       400:
+ *         description: Invalid input
  */
 router.post('/', rateCardController.createRateCard);
 
@@ -76,6 +92,7 @@ router.post('/', rateCardController.createRateCard);
  * /api/rate-cards/{id}:
  *   put:
  *     summary: Update an existing rate card
+ *     description: Updates pricing information for an existing rate card.
  *     tags: [Rate Cards]
  *     security:
  *       - bearerAuth: []
@@ -92,6 +109,30 @@ router.post('/', rateCardController.createRateCard);
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               order_type:
+ *                 type: string
+ *                 enum:
+ *                   - B2B
+ *                   - B2C
+ *
+ *               from_zone_id:
+ *                 type: string
+ *                 format: uuid
+ *
+ *               to_zone_id:
+ *                 type: string
+ *                 format: uuid
+ *
+ *               base_price:
+ *                 type: number
+ *
+ *               price_per_kg:
+ *                 type: number
+ *
+ *               cod_surcharge_pct:
+ *                 type: number
+ *
  *     responses:
  *       200:
  *         description: Rate card updated successfully
@@ -105,6 +146,7 @@ router.put('/:id', rateCardController.updateRateCard);
  * /api/rate-cards/{id}:
  *   delete:
  *     summary: Delete a rate card
+ *     description: Deletes a delivery pricing rule.
  *     tags: [Rate Cards]
  *     security:
  *       - bearerAuth: []
