@@ -1,4 +1,6 @@
-const BASE = '';
+const BASE = window.location.hostname === 'localhost'
+             ? 'http://localhost:5001'
+             : 'https://delivery-tracker-api.onrender.com';
 
 async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('dt_token');
