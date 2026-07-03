@@ -19,6 +19,15 @@
 
 ---
 
+## 🌐 Live Demo
+
+| Service | URL |
+|---------|-----|
+| 🚀 Frontend | https://delivery-tracker-blond-tau.vercel.app |
+| ⚙️ Backend API | https://delivery-tracker-api.onrender.com |
+| 📖 Swagger Docs | https://delivery-tracker-api.onrender.com/api-docs |
+
+---
 # 📖 Overview
 
 The **Delivery Tracker System** is a full-stack logistics platform designed to simplify and automate **last-mile delivery operations**.
@@ -37,6 +46,24 @@ Unlike a basic CRUD application, this project implements several real-world back
 - Swagger API documentation
 
 The system follows a **modular service-oriented architecture**, where business logic is organized into independent services responsible for pricing, zone detection, assignment, tracking, and notifications.
+
+---
+
+## 📌 Project Status
+
+✅ Production Ready
+
+✔ Fully Deployed
+
+✔ REST API
+
+✔ JWT Authentication
+
+✔ PostgreSQL
+
+✔ Swagger Documentation
+
+✔ Responsive Frontend
 
 ---
 
@@ -933,37 +960,49 @@ The following screenshots demonstrate the different modules of the application.
 
 ## 🔐 Authentication
 
-> `docs/images/login.png`
+<p align="center">
+  <img src="docs/images/login.png" alt="Login Page" width="100%" height="50%">
+</p>
 
 ---
 
 ## 👨‍💼 Admin Dashboard
 
-> `docs/images/admin-dashboard.png`
+<p align="center">
+  <img src="docs/images/admin-dashboard.png" alt="Admin Dashboard" width="100%">
+</p>
 
 ---
 
 ## 👤 Customer Dashboard
 
-> `docs/images/customer-dashboard.png`
+<p align="center">
+  <img src="docs/images/customer-dashboard.png" alt="Customer Dashboard" width="100%">
+</p>
 
 ---
 
 ## 🚚 Agent Dashboard
 
-> `docs/images/agent-dashboard.png`
+<p align="center">
+  <img src="docs/images/agent-dashboard.png" alt="Agent Dashboard" width="100%">
+</p>
 
 ---
 
 ## 📖 Swagger Documentation
 
-> `docs/images/swagger.png`
+<p align="center">
+  <img src="docs/images/swagger.png" alt="Swagger UI" width="100%">
+</p>
 
 ---
 
 ## 🗄️ Database ER Diagram
 
-> `docs/images/er-diagram.png`
+<p align="center">
+  <img src="docs/images/er-diagram.png" alt="ER Diagram" width="100%">
+</p>
 
 ---
 
@@ -1100,15 +1139,13 @@ The backend APIs were thoroughly tested using **Postman** and **Swagger UI**.
 
 # 🚀 Deployment
 
-> **Deployment placeholders are intentionally left blank and will be updated once the project is hosted.**
+## Deployment Stack
 
-## Suggested Deployment Stack
-
-| Component | Recommended Platform |
+| Component | Platform |
 |-----------|----------------------|
-| Frontend | Vercel / Netlify |
-| Backend | Render / Railway |
-| Database | PostgreSQL (Neon / Supabase / Render) |
+| Frontend | Vercel |
+| Backend | Render |
+| Database | PostgreSQL (Neon) |
 | API Documentation | Swagger UI |
 
 ---
@@ -1117,9 +1154,9 @@ The backend APIs were thoroughly tested using **Postman** and **Swagger UI**.
 
 | Service | URL |
 |---------|-----|
-| Frontend | Coming Soon |
-| Backend API | Coming Soon |
-| Swagger Documentation | Coming Soon |
+| 🚀 Frontend | https://delivery-tracker-blond-tau.vercel.app |
+| ⚙️ Backend API | https://delivery-tracker-api.onrender.com |
+| 📖 Swagger Docs | https://delivery-tracker-api.onrender.com/api-docs |
 
 ---
 
@@ -1290,7 +1327,7 @@ Backend Developer • Full Stack Developer • Problem Solver
 
 💼 LinkedIn: https://www.linkedin.com/in/shivank0404
 
-🐙 GitHub: *(Repository link will be added after publishing)*
+🐙 GitHub: https://github.com/Shivank-0404/delivery-tracker
 
 ---
 
