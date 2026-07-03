@@ -53,17 +53,17 @@ The system follows a **modular service-oriented architecture**, where business l
 
 ✅ Production Ready
 
-✔ Fully Deployed
+✅ Fully Deployed
 
-✔ REST API
+✅ REST API
 
-✔ JWT Authentication
+✅ JWT Authentication
 
-✔ PostgreSQL
+✅ PostgreSQL
 
-✔ Swagger Documentation
+✅ Swagger Documentation
 
-✔ Responsive Frontend
+✅ Responsive Frontend
 
 ---
 
